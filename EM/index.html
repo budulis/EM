@@ -1,0 +1,136 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<title>Expense manager</title>
+		<script src="Content/Chart.min.js"></script>
+		<script src="Content/jquery-2.1.3.min.js"></script>
+		<link rel="stylesheet" href="Content/skeleton.css" />
+	</head>
+<body>
+	
+	<div class="row">
+		<div style="width: 50%" class="six columns">
+			<canvas id="barCanvas" height="300" width="500"></canvas>
+		</div>
+		<div class="two columns" id="categoriesDiv" style="height: 500px">
+			<canvas id="cat_canvas" height="450" width="300"></canvas>
+		</div>
+	</div>
+
+	<div id="pies" class="row">
+	</div>
+	<script>
+
+		var dataByCategoryBar = function () {
+			var categories = [];
+			var periods = [];
+			var datasets = [];
+
+			$.getJSON("/data/bycategory/bar", function (response) {
+				$.each(response.Categories, function (key, val) {
+					categories.push(val);
+				});
+
+				fillCategories(categories);
+
+				$.each(response.Data, function (key, val) {
+					periods.push(val.Period);
+					val.Data = data(val.Data, categories.length);
+				});
+
+				for (var i = 0; i < categories.length; i++) {
+					datasets.push({
+						fillColor: categories[i].ColorCode,
+						strokeColor: "rgba(220,220,220,0.8)",
+						highlightFill: "rgba(220,220,220,0.75)",
+						highlightStroke: "rgba(220,220,220,1)",
+						data: barData(response.Data, i)
+					});
+				}
+
+			}).done(function () {
+				var ctx = document.getElementById("barCanvas").getContext("2d");
+				window.myBar = new Chart(ctx).Bar({ labels: periods, datasets: datasets }, {
+					responsive: true,
+					barShowStroke: false,
+					barValueSpacing: 5,
+					scaleGridLineWidth: 1,
+					scaleGridLineColor: "rgba(0,0,0,0.75)",
+				});
+			});
+		}
+
+		var dataByCategoryPie = function () {
+			var data = [];
+			$.getJSON("/data/bycategory/pie", function (response) {
+				$.each(response, function (key, val) {
+					data.push(val);
+				});
+			}).done(function () {
+				createPies(data);
+			});;
+		};
+
+		var createPies = function (data) {
+			$.each(data, function (k, v) {
+				$('<div>').attr({
+					id: "div_id_" + k,
+				}).addClass("two columns")
+					.appendTo('#pies');
+
+				$('<canvas>').attr({
+					id: "canvas_id_" + k
+				}).appendTo("#div_id_" + k);
+				$("#div_id_" + k).append("<p style='text-align: center;margin-left:84px;'>" + v.Period + "</p>");
+				var ctx = document.getElementById("canvas_id_" + k).getContext("2d");
+				window.myPie = new Chart(ctx).Pie(v.Data, {
+					animationEasing: "easeOutBounce",
+					animationSteps: 50
+				});
+			});
+		}
+
+		var fillCategories = function (data) {
+			var ctx = document.getElementById("cat_canvas").getContext("2d");
+			var gap = 35;
+			$.each(data, function (k, v) {
+				ctx.fillStyle = v.ColorCode;
+				ctx.fillRect(0, 12 + (k * gap), 20, 20);
+				ctx.font = "12px Verdana";
+				ctx.fillStyle = "black";
+				ctx.fillText(v.Name, 25, 27 + (k * gap));
+			});
+		}
+
+		var data = function (d, catCount) {
+			var res = [];
+
+			for (var i = 0; i < catCount; i++) {
+				res.push(0);
+			}
+
+			$.each(d, function (k, v) {
+				res[v.CatId - 1] = v.Amount;
+			});
+
+			return res;
+		}
+
+		var barData = function (d, itemIndex) {
+			var result = [];
+
+			$.each(d, function (k, v) {
+				result.push(v.Data[itemIndex]);
+			});
+
+			return result;
+		}
+
+		window.onload = function () {
+			dataByCategoryBar();
+			dataByCategoryPie();
+		}
+
+	</script>
+</body>
+</html>
